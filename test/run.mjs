@@ -60,7 +60,7 @@ for (const [id, input, width] of alignCases) {
     const plain = stripAnsi(input);
     const body = oracle(plain);
     const rtl = detectDirection(plain) === "rtl";
-    const pad = rtl && !SEP_RE.test(plain) ? Math.max(0, width - cells(plain)) : 0;
+    const pad = rtl && !SEP_RE.test(plain) ? Math.max(0, width - 1 - cells(plain)) : 0;
     const want = " ".repeat(pad) + body;
     if (got === want) pass++;
     else failures.push({ id, input, got, want, kind: "align" });
