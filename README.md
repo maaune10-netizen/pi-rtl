@@ -22,15 +22,21 @@ Kitty، Alacritty، Ghostty، iTerm2. النتيجة:
 سطر واحد يُعدّل في renderer الخاص بـ pi: النص يُحوَّل إلى ترتيب بصري + صور
 الحروف المتصلة **قبل** كتابته للطرفية.
 
-```
-npx github:maaune10-netizen/pi-rtl
+```sh
+curl -fsSL https://raw.githubusercontent.com/maaune10-netizen/pi-rtl/main/install.sh | sh
 ```
 
 ثم أعد تشغيل `pi`. لا اعتماديات، لا خادم، لا تغيير في النص المرسل للنموذج.
 
-### تثبيت يدوي
+بدائل:
 
 ```sh
+# عبر npx (npm أقل من 12)
+npx -y github:maaune10-netizen/pi-rtl
+# npm 12 يمنع حزم git افتراضياً، فأضف العلم
+npx -y --allow-git=all github:maaune10-netizen/pi-rtl
+
+# أو استنسخ يدوياً
 git clone https://github.com/maaune10-netizen/pi-rtl
 cd pi-rtl
 node bin/pi-rtl.mjs            # تطبيق
@@ -53,10 +59,19 @@ Correct Arabic/Persian/Hebrew rendering (bidi reordering + contextual shaping)
 inside [pi](https://pi.dev), on terminals that have neither.
 
 ```sh
-npx github:maaune10-netizen/pi-rtl     # install into the current pi release
+curl -fsSL https://raw.githubusercontent.com/maaune10-netizen/pi-rtl/main/install.sh | sh
 ```
 
-Restart pi afterwards. Re-run it after every `pi update`.
+Restart pi afterwards. Re-run it after every `pi update` (a new release replaces
+the bundle).
+
+Alternatives:
+
+```sh
+npx -y github:maaune10-netizen/pi-rtl                  # npm < 12
+npx -y --allow-git=all github:maaune10-netizen/pi-rtl  # npm 12 blocks git deps by default
+git clone https://github.com/maaune10-netizen/pi-rtl && cd pi-rtl && node bin/pi-rtl.mjs
+```
 
 ### How it works
 
