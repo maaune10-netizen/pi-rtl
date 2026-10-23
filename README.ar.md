@@ -56,6 +56,28 @@ node bin/pi-rtl.mjs --undo     # رجوع
 في Windows Terminal: الإعدادات ← المظهر ← الخط.
 في mintty / Git Bash: `Options → Text → Font`.
 
+## أين لا نحتاجها
+
+بعض الطرفيات تطبق الاتجاه وتشكيل الحروف بنفسها. تمرير نص مُرتَّب بصرياً إليها
+يعيد ترتيبه مرة ثانية، لذلك يتوقف الـpatch تلقائياً في:
+
+| الطرفية | كيف تُعرَف |
+|---|---|
+| طرفية macOS (Terminal.app) | `TERM_PROGRAM=Apple_Terminal` |
+| Konsole | `KONSOLE_VERSION` |
+| mlterm | `TERM=mlterm…` |
+
+وفي غيرها يعمل: Windows Terminal، mintty/Git Bash، iTerm2، Kitty، Alacritty،
+Ghostty، GNOME Terminal، xterm. وتقدر تفرض الحالتين:
+
+```sh
+PI_RTL=0 pi   # لا تحويل إطلاقاً (مثلاً Terminal على macOS عبر SSH)
+PI_RTL=1 pi   # حوّل دائماً حتى على طرفية تدعم الاتجاه
+```
+
+`TERM_PROGRAM` لا يُنقل عبر SSH افتراضياً، فجلسة SSH تبدأ من طرفية macOS تبدو
+كطرفية عادية وسيُحوَّل نصها. لو ظهر النص مقلوباً مرتين هناك، استخدم `PI_RTL=0`.
+
 ## كيف يعمل
 
 `pi` تركّب كل سطر إخراج ثم تكتبه. الـpatch يعترض ذلك الموضع الوحيد:

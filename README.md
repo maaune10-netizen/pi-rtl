@@ -56,6 +56,30 @@ terminal font must contain them:
 Windows Terminal: Settings → Appearance → Font face.
 mintty / Git Bash: `Options → Text → Font`.
 
+## Where it is not needed
+
+Some terminals already run bidi and Arabic shaping themselves. Feeding them
+visual-order presentation forms would reorder the text twice, so the patch
+stands down automatically for:
+
+| Terminal | Detected by |
+|---|---|
+| macOS Terminal.app | `TERM_PROGRAM=Apple_Terminal` |
+| Konsole | `KONSOLE_VERSION` |
+| mlterm | `TERM=mlterm…` |
+
+Everywhere else (Windows Terminal, mintty/Git Bash, iTerm2, Kitty, Alacritty,
+Ghostty, GNOME Terminal/VTE, xterm) it runs. Override either way:
+
+```sh
+PI_RTL=0 pi   # never transform (e.g. macOS Terminal over SSH, see below)
+PI_RTL=1 pi   # always transform, even on a native-bidi terminal
+```
+
+`TERM_PROGRAM` is not forwarded over SSH by default, so an SSH session started
+from macOS Terminal looks like a plain terminal and will be transformed. If the
+output comes out doubled there, use `PI_RTL=0`.
+
 ## How it works
 
 pi composes every output line, then writes it. The patch intercepts that single

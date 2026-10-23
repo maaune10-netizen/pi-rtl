@@ -120,6 +120,20 @@ const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 // LTR. Tables are protected by the separator split, not by forcing LTR.
 const BASE_DIR = process.env.PI_RTL_DIRECTION === "ltr" ? "ltr" : "auto";
 
+// Some terminals already do bidi and Arabic shaping themselves. Feeding them
+// visual-order presentation forms would reorder the text a second time, so the
+// patch stands down there. PI_RTL=1 overrides, PI_RTL=0 disables everywhere.
+const PI_RTL_ENV = (process.env.PI_RTL ?? "").toLowerCase();
+const RTL_DISABLED = ["0", "off", "false", "no"].includes(PI_RTL_ENV);
+const RTL_FORCED = ["1", "on", "true", "yes", "force"].includes(PI_RTL_ENV);
+const NATIVE_BIDI_TERMINAL = (() => {
+    if (RTL_FORCED) return false;
+    if ((process.env.TERM_PROGRAM ?? "") === "Apple_Terminal") return true; // macOS Terminal.app
+    if (process.env.KONSOLE_VERSION) return true;                          // Konsole
+    if ((process.env.TERM ?? "").startsWith("mlterm")) return true;        // mlterm
+    return false;
+})();
+
 function clusterize(text) {
     // Intl.Segmenter reports UTF-16 offsets; everything else here works in
     // code point space, so translate (surrogate pairs would otherwise drift).
@@ -142,6 +156,7 @@ const cache = new Map();
 const CACHE_MAX = 4000;
 
 export function applyRtl(line, width) {
+    if (RTL_DISABLED || NATIVE_BIDI_TERMINAL) return line;
     if (typeof line !== "string" || line.length === 0) return line;
     if (!RTL_RE.test(line)) return line;
 

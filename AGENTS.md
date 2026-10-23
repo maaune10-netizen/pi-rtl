@@ -52,7 +52,9 @@ older patch shapes in place.
 ## Testing
 
 ```sh
-node test/run.mjs        # 132 cases; exits non-zero on failure
+node test/run.mjs        # 132 ordering/alignment cases; non-zero on failure
+node test/guard.mjs      # 9 environment-guard cases
+npm test                 # both
 node test/run.mjs -v     # print every case
 ```
 
@@ -113,9 +115,14 @@ Windows Terminal. `mlterm` renders Arabic natively and will hide regressions.
 | patch "succeeds" but nothing changes | pi is loaded from `node_modules`, not `dist/bundle` |
 | patch stops applying after `pi update` | expected: a new release replaces the bundle, re-run the installer |
 
-Env knobs: `PI_RTL_DIRECTION=ltr` disables RTL paragraph detection;
-`PI_MANAGED_INSTALL_ROOT` overrides the install root; `PI_TUI_WRITE_LOG` dumps
-pi's raw output.
+Env knobs: `PI_RTL=0` disables the transform, `PI_RTL=1` forces it even on a
+terminal that does its own bidi, `PI_RTL_DIRECTION=ltr` disables RTL paragraph
+detection, `PI_MANAGED_INSTALL_ROOT` overrides the install root,
+`PI_TUI_WRITE_LOG` dumps pi's raw output.
+
+The auto-stand-down list (Apple Terminal, Konsole, mlterm) exists because
+transforming text that the terminal will reorder again produces garbage.
+`test/guard.mjs` covers it; add a case there whenever the list grows.
 
 ## Known gaps (do not silently "fix")
 
