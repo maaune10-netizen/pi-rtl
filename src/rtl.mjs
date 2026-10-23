@@ -159,15 +159,50 @@ export function applyRtl(line, width) {
     if (RTL_DISABLED || NATIVE_BIDI_TERMINAL) return line;
     if (typeof line !== "string" || line.length === 0) return line;
     if (!RTL_RE.test(line)) return line;
+    return memo(line, width).text;
+}
 
+function memo(line, width) {
     const key = width ? `${width}\u0000${line}` : line;
     const hit = cache.get(key);
     if (hit !== undefined) return hit;
-
-    const out = transform(line, width);
+    const entry = transform(line, width);
     if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-    cache.set(key, out);
-    return out;
+    cache.set(key, entry);
+    return entry;
+}
+
+/**
+ * Translate a visual terminal column back to the logical cell index of the
+ * same line. Used to keep mouse selection in sync with the reordered text.
+ */
+export function logicalColumn(line, width, visualCol) {
+    if (typeof line !== "string" || !RTL_RE.test(line)) return visualCol;
+    if (RTL_DISABLED || NATIVE_BIDI_TERMINAL) return visualCol;
+    const entry = memo(line, width);
+    const map = entry.map;
+    if (!map || map.length === 0) return visualCol;
+    const index = visualCol - entry.pad;
+    if (index <= 0) return map[0];
+    if (index >= map.length) return map[map.length - 1] + 1;
+    return map[index];
+}
+
+/**
+ * Remap a {row, col} selection point coming from a mouse event. `tui` is the
+ * renderer instance, used to read the logical line for that screen row.
+ */
+export function remapPoint(tui, point) {
+    if (!point || typeof point.col !== "number") return point;
+    if (point.scrollView) return point;
+    let line;
+    try { line = tui.getSelectionSourceLine(point); } catch { return point; }
+    if (typeof line !== "string" || !RTL_RE.test(line)) return point;
+    const width = tui.terminal?.columns ?? 0;
+    const col = logicalColumn(line, width, point.col);
+    if (col === point.col) return point;
+    point.col = col;
+    return point;
 }
 
 // Box-drawing and pipes act as hard bidi boundaries, like mlterm's
@@ -180,36 +215,50 @@ const SEP_RE = /([\u2500-\u257f|])/u;
 const WIDE_RE = /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]|[\u{1f000}-\u{1faff}]|[\u{2600}-\u{27bf}]/u;
 
 function transform(line, width) {
-    if (!SEP_RE.test(line)) {
-        const r = transformSegment(line);
-        if (typeof r === "string") return r;
-        // A paragraph that resolves RTL is flushed right, like every Arabic UI.
-        if (width && r.direction === "rtl" && !WIDE_RE.test(line)) {
+    const parts = SEP_RE.test(line) ? line.split(SEP_RE) : [line];
+    let text = "";
+    let pad = 0;
+    const map = [];
+    let logicalOffset = 0;
+
+    for (let i = 0; i < parts.length; i++) {
+        const isSeparator = i % 2 === 1;
+        const entry = transformSegment(parts[i]);
+        if (isSeparator) {
+            text += parts[i];
+            map.push(logicalOffset);
+            logicalOffset += 1;
+            continue;
+        }
+        if (parts.length === 1 && width && entry.direction === "rtl" && !WIDE_RE.test(line)) {
             // leave the last column free: a line that fills the terminal exactly
             // would auto-wrap and shift everything by one row
-            const pad = width - 1 - r.cells;
-            if (pad > 0) return " ".repeat(pad) + r.text;
+            pad = Math.max(0, width - 1 - entry.cells);
         }
-        return r.text;
+        text += entry.text;
+        for (const logicalIndex of entry.visToLog) map.push(logicalOffset + logicalIndex);
+        logicalOffset += entry.logicalLen;
     }
-    const parts = line.split(SEP_RE);
-    let out = "";
-    for (let i = 0; i < parts.length; i++) {
-        const r = i % 2 === 1 ? parts[i] : transformSegment(parts[i]);
-        out += typeof r === "string" ? r : r.text;
-    }
-    return out;
+
+    if (pad > 0) text = " ".repeat(pad) + text;
+    return { text, pad, map };
+}
+
+function identitySegment(line) {
+    const cells = [...line].length;
+    const visToLog = Array.from({ length: cells }, (_, i) => i);
+    return { text: line, direction: "ltr", cells, logicalLen: cells, visToLog };
 }
 
 function transformSegment(line) {
     const { chars, styles } = tokenize(line);
-    if (chars.length === 0) return line;
+    if (chars.length === 0) return identitySegment(line);
 
     const logical = chars.join("");
     const shaped = shape(logical, { ligatures: false, tashkeel: "keep" });
     const shapedChars = [...shaped];
     // 1:1 mapping is what makes the whole approach safe.
-    if (shapedChars.length !== chars.length) return line;
+    if (shapedChars.length !== chars.length) return identitySegment(line);
 
     const { levels, direction } = analyze(shaped, {
         direction: BASE_DIR,
@@ -254,11 +303,13 @@ function transformSegment(line) {
 
     let out = "";
     let curStyle = null;
+    const visToLog = [];
     for (const ci of order) {
         const cluster = clusters[ci];
         const rtl = (clusterLevel[ci] & 1) === 1;
         for (let k = 0; k < cluster.len; k++) {
             const li = cluster.start + k;
+            visToLog.push(li);
             let ch = shapedChars[li];
             if (rtl) {
                 const m = MIRROR.get(ch);
@@ -274,5 +325,5 @@ function transformSegment(line) {
         }
     }
     if (curStyle) out += "\x1b[0m";
-    return { text: out, direction, cells: shapedChars.length };
+    return { text: out, direction, cells: shapedChars.length, logicalLen: shapedChars.length, visToLog };
 }

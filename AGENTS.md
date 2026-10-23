@@ -41,6 +41,11 @@ older patch shapes in place.
    positions. Never strip colour, OSC 8 hyperlinks, or reset sequences.
 3. **One call site.** Do not add a second transform pass. Everything that is
    printed flows through `applyLineResets`.
+
+   That call site also stashes `this.__piRtlLogical` (the pre-transform screen),
+   because `previousScreen` ends up holding visual-order lines and selection
+   reads from it. Keep that stash in sync with any change here, or copy and
+   word-selection silently return reversed text.
 4. **Separators split runs.** `│`-style box drawing and `|` are hard bidi
    boundaries. Removing this collapses tables and TUI borders.
 5. **Direction is per segment, never forced.** Do not "fix" a case by forcing
@@ -103,6 +108,21 @@ npm i @xterm/headless
 To prove the renderer works on a terminal with **no** bidi and **no** shaping,
 run it under `xterm` (not `mlterm`) — `xterm` is the honest stand-in for
 Windows Terminal. `mlterm` renders Arabic natively and will hide regressions.
+
+## Selection coordinates
+
+Two coordinate spaces coexist:
+
+* **visual columns** — what the terminal and the mouse report,
+* **logical columns** — what `applySelection`, the highlight range and the copy
+  path expect.
+
+`applyRtl` returns a permutation (`map`) per line and `logicalColumn(line, width,
+visualCol)` inverts it. `remapPoint(tui, point)` is called from the patched
+`getSelectionPoint`, which is the single funnel for mouse coordinates; scroll-view
+points are skipped because their columns are box-relative. If selection ever feels
+mirrored again, check that all three patch points are present — `--check` only
+reports the line-level patch, so inspect the chunk for `__piRtlPoint`.
 
 ## Debugging
 

@@ -112,10 +112,24 @@ segments resolve RTL (like mlterm and macOS Terminal), English-first segments
 stay LTR. Lines without RTL characters take a regex fast path and are returned
 byte-identical.
 
+## Mouse selection
+
+The mouse reports **visual** columns, while pi's selection model, its highlight
+and its copy path all work in **logical** columns. The patch translates the
+pointer as soon as the event is received, so:
+
+* dragging across Arabic text highlights exactly what is between the two
+  pointer positions (it no longer mirrors),
+* the highlighted range follows the reordered glyphs,
+* `Ctrl+C` yields logical-order text, which pastes correctly into any editor.
+
 ## Tests
 
 ```sh
-node test/run.mjs        # 132 cases
+npm test                 # everything below
+node test/run.mjs        # 132 reordering/alignment cases
+node test/selection.mjs  # visual -> logical column mapping
+node test/guard.mjs      # terminal auto-stand-down
 node test/run.mjs -v     # print every case
 ```
 

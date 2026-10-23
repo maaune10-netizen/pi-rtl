@@ -20,8 +20,39 @@ const RUNTIME_DIR = "pi-rtl";
 export const TARGET = "normalizeTerminalOutput(line)+reset";
 export const PATCHED = "__piRtl(normalizeTerminalOutput(line),this.terminal.columns)+reset";
 export const PATCHED_V1 = "__piRtl(normalizeTerminalOutput(line))+reset";
-export const IMPORT_LINE = 'import{applyRtl as __piRtl}from"../pi-rtl/rtl.mjs";\n';
-export const IMPORT_RE = /^import\{applyRtl as __piRtl\}from"\.\.\/pi-rtl\/rtl\.mjs";\n/m;
+export const IMPORT_LINE = 'import{applyRtl as __piRtl,remapPoint as __piRtlPoint}from"../pi-rtl/rtl.mjs";\n';
+export const IMPORT_RE = /^import\{applyRtl as __piRtl(?:,remapPoint as __piRtlPoint)?\}from"\.\.\/pi-rtl\/rtl\.mjs";\n/m;
+export const IMPORT_V1 = 'import{applyRtl as __piRtl}from"../pi-rtl/rtl.mjs";\n';
+
+// Mouse selection arrives in visual columns; every consumer below works in
+// logical columns, so the point is remapped as soon as it is created.
+const SEL_POINT_FROM =
+    'getSelectionPoint(event,scrollView){if(scrollView){let point=this.getScrollSelectionPoint(scrollView,event.x,event.y);if(point)return point}return{row:Math.max(0,Math.min(this.terminal.rows-1,event.y)),col:Math.max(0,Math.min(this.terminal.columns-1,event.x))}}';
+const SEL_POINT_TO =
+    'getSelectionPoint(event,scrollView){if(scrollView){let point=this.getScrollSelectionPoint(scrollView,event.x,event.y);if(point)return __piRtlPoint(this,point)}let __piRtlP={row:Math.max(0,Math.min(this.terminal.rows-1,event.y)),col:Math.max(0,Math.min(this.terminal.columns-1,event.x))};return __piRtlPoint(this,__piRtlP)}';
+
+// Selection reads text from the stored screen, which is visual order. Keep a
+// logical copy so copy and word-select return text that pastes correctly.
+const SEL_LINE_FROM = 'return this.previousScreen[point.row]??""';
+const SEL_LINE_TO =
+    'return (this.__piRtlLogical&&this.__piRtlLogical[point.row]!==void 0?this.__piRtlLogical[point.row]:this.previousScreen[point.row])??""';
+
+const RESETS_FROM = 'applyLineResets(lines){let reset=SEGMENT_RESET;';
+const RESETS_TO = 'applyLineResets(lines){this.__piRtlLogical=lines.slice();let reset=SEGMENT_RESET;';
+
+function patchSelection(source, mode) {
+    let next = source;
+    const pairs = [
+        [SEL_POINT_FROM, SEL_POINT_TO],
+        [SEL_LINE_FROM, SEL_LINE_TO],
+        [RESETS_FROM, RESETS_TO],
+    ];
+    for (const [from, to] of pairs) {
+        const [find, replace] = mode === "apply" ? [from, to] : [to, from];
+        if (next.includes(find)) next = next.split(find).join(replace);
+    }
+    return next;
+}
 
 export function bundleDirs() {
     const root = process.env.PI_MANAGED_INSTALL_ROOT ?? join(homedir(), ".pi", "agent", "install");
@@ -88,12 +119,15 @@ export function apply() {
             const hasV1 = source.includes(PATCHED_V1);
             const hasTarget = source.includes(TARGET);
             if (!hasTarget && !hasPatched && !hasV1) continue;
-            if (hasPatched && hasImport) continue;
+            const selectionDone = source.includes(SEL_POINT_TO) && source.includes(SEL_LINE_TO) && source.includes(RESETS_TO);
+            if (hasPatched && hasImport && selectionDone) continue;
 
             let next = source;
             if (!hasImport) next = IMPORT_LINE + next;
+            else if (next.includes(IMPORT_V1)) next = next.replace(IMPORT_V1, IMPORT_LINE);
             if (hasV1) next = next.split(PATCHED_V1).join(PATCHED);
             if (hasTarget) next = next.split(TARGET).join(PATCHED);
+            next = patchSelection(next, "apply");
             if (next === source) continue;
             writeFileSync(path, next, "utf8");
             changed.push(file);
@@ -118,6 +152,7 @@ export function undo() {
             let next = source;
             next = next.split(PATCHED).join(TARGET);
             next = next.split(PATCHED_V1).join(TARGET);
+            next = patchSelection(next, "undo");
             next = next.replace(IMPORT_RE, "");
             if (next === source) continue;
             writeFileSync(path, next, "utf8");

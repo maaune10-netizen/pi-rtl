@@ -18,7 +18,7 @@
     "install.sh"
   ],
   "scripts": {
-    "test": "node test/run.mjs && node test/guard.mjs",
+    "test": "node test/run.mjs && node test/selection.mjs && node test/guard.mjs",
     "apply": "node bin/pi-rtl.mjs",
     "undo": "node bin/pi-rtl.mjs --undo"
   },
