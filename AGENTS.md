@@ -66,6 +66,22 @@ When you change behaviour, add cases to `test/corpus.mjs`:
   stay attached to their base instead of being reversed per code point).
 * `alignCases` — `[id, input, width]` for right-alignment expectations.
 
+## Regenerating the README screenshot
+
+`docs/demo-session.jsonl` is a synthetic session (user question plus one
+assistant reply with a table, a code block and a list — no real paths, keys or
+provider data). To rebuild the image:
+
+```sh
+cd <some empty dir>
+pi --session <repo>/docs/demo-session.jsonl --offline
+# screenshot the window, then crop it to the window geometry
+```
+
+Render it in `xterm`, not `mlterm`: mlterm shapes Arabic itself and would hide
+regressions. If the assistant message lacks `api`/`model` fields pi crashes in
+`addUsageToTotals`, so keep the shape of the entry as it is.
+
 ## Verifying on a machine
 
 ```sh

@@ -10,9 +10,12 @@
   "files": [
     "bin",
     "src",
+    "docs",
     "README.md",
+    "README.ar.md",
     "AGENTS.md",
-    "LICENSE"
+    "LICENSE",
+    "install.sh"
   ],
   "scripts": {
     "test": "node test/run.mjs",

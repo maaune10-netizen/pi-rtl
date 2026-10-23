@@ -170,7 +170,9 @@ function transform(line, width) {
         if (typeof r === "string") return r;
         // A paragraph that resolves RTL is flushed right, like every Arabic UI.
         if (width && r.direction === "rtl" && !WIDE_RE.test(line)) {
-            const pad = width - r.cells;
+            // leave the last column free: a line that fills the terminal exactly
+            // would auto-wrap and shift everything by one row
+            const pad = width - 1 - r.cells;
             if (pad > 0) return " ".repeat(pad) + r.text;
         }
         return r.text;
