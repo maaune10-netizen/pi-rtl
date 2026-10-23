@@ -1,0 +1,42 @@
+{
+  "name": "pi-rtl",
+  "version": "1.0.0",
+  "description": "Arabic/RTL rendering for the pi coding agent on terminals without bidi or Arabic shaping",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "pi-rtl": "bin/pi-rtl.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/run.mjs",
+    "apply": "node bin/pi-rtl.mjs",
+    "undo": "node bin/pi-rtl.mjs --undo"
+  },
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "arabic",
+    "rtl",
+    "bidi",
+    "terminal",
+    "tui"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maaune10-netizen/pi-rtl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maaune10-netizen/pi-rtl/issues"
+  },
+  "homepage": "https://github.com/maaune10-netizen/pi-rtl"
+}
